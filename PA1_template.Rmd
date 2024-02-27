@@ -2,7 +2,8 @@
 title: "Peer-graded Assignment: Course Project 1"
 author: "Jean-François Bertrand"
 date: "2024-02-16"
-output: html_document
+output: md_document
+#output: html_document
 ---
 
 ## Loading and preprocessing the data
@@ -100,8 +101,6 @@ g1 <- g1 + geom_text(data = mean_daily_step, mapping = aes(x=-2000, y=28.5, hjus
 g1 <- g1 + geom_text(data = median_daily_step, mapping = aes(x=-2000, y=27, hjust = 0, label = c(paste0("Median number steps taken: ",round(median))))) 
 g1 <- g1 + ylim(0,40) + theme(plot.title = element_text(size = 12, face = "bold"), plot.subtitle = element_text(size = 10))
 g1
-
-ggsave(file = paste0(results.dir, "Figure1.pdf"),g1)
 ```
 
 As indicated on Figure 1, the mean number of steps taken per day over the period analysed is `r format(round(mean_daily_step$mean), big.mark=" ", scientific=FALSE, trim=TRUE)` while the median number of steps taken is `r format(round(median_daily_step$median), big.mark=" ", scientific=FALSE, trim=TRUE)`.
@@ -132,8 +131,6 @@ g2 <- g2 + annotate("text", x=120, y=200, hjust = 0, label = c(paste0("The maxim
 g2 <- g2 + annotate("text", x=120, y=192, hjust = 0, label = c(paste0("taken per period of 5 minutes is ",round(max_interval_step$mean)))) 
 g2 <- g2 + annotate("text", x=120, y=184, hjust = 0, label = c(paste0("and it takes place at ",max_interval_step$time))) 
 g2 
-
-ggsave(file = paste0(results.dir, "Figure2.pdf"),g2)
 ```
 
 As indicated on Figure 2, the maximum average number steps taken per period of 5 minutes is  `r round(max_interval_step$mean)` and it takes place at `r format(max_interval_step$time, format="%b %d %Y")`.
@@ -185,8 +182,6 @@ g3 <- g3 + geom_text(data = mean_daily_step_imputed, mapping = aes(x=-2000, y=38
 g3 <- g3 + geom_text(data = median_daily_step_imputed, mapping = aes(x=-2000, y=36.5, hjust = 0, label = c(paste0("Median number steps taken: ",round(median))))) 
 g3 <- g3 + ylim(0,40) + theme(plot.title = element_text(size = 12, face = "bold"), plot.subtitle = element_text(size = 10))
 g3
-
-ggsave(file = paste0(results.dir, "Figure3.pdf"),g3)
 ```
 
 As indicated on Figure 3, the mean number of steps taken per day over the period analysed is `r format(round(mean_daily_step_imputed$mean), big.mark=" ", scientific=FALSE, trim=TRUE)` while the median number of steps taken is `r format(round(median_daily_step_imputed$median), big.mark=" ", scientific=FALSE, trim=TRUE)`.
@@ -219,8 +214,6 @@ g4 <- g4 + scale_color_manual(values=c("red","blue")) + facet_wrap(~weekday, nco
 g4 <- g4 + labs(title = "Figure 4: Average daily activity pattern - weekday vs weekend", subtitle = "(5 minutes interval - missing imputed)", x = "Hour of the day", y= "Average number of steps taken") + theme_bw()
 g4 <- g4 + theme(plot.title = element_text(size = 12, face = "bold"), plot.subtitle = element_text(size = 10), legend.title=element_blank(), legend.justification=c(0.9,0.9), legend.position=c(0.15,0.98)) 
 g4 
-
-ggsave(file = paste0(results.dir, "Figure4.pdf"),g4)
 ```
 
 As we clearly see from figure 4, the daily patterns appears to be different for week days and weekend days. The maximum average number steps taken per period of 5 minutes, during week days, is `r round(max_interval_step_imputed$mean[1])` and it takes place at `r format(max_interval_step_imputed$time[1], format="%b %d %Y")`. This compares respectively to `r round(max_interval_step_imputed$mean[2])` steps taking place at `r format(max_interval_step_imputed$time[2], format="%b %d %Y")` for weekend days.
