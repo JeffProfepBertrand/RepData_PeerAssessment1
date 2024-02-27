@@ -1,25 +1,227 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Peer-graded Assignment: Course Project 1"
+author: "Jean-François Bertrand"
+date: "2024-02-16"
+output: html_document
 ---
-
 
 ## Loading and preprocessing the data
 
+Before loading and pre-processing the data, the global environment will be cleaned and libraries to be used in this assessment will be loaded to memory.  
+
+```{r setup, echo=TRUE}
+## Cleaning Global Environment first
+rm(list = ls())
+
+## library to use
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(gridExtra)
+library(lubridate)
+```
+
+Once those libraries are loaded into memory, the next step of the project is to load the data from the internet into a data frame.  If proxy server restrictions does not allow RStudio to open data from the internet (which is the case for me due to IT protocols), download data in a folder on computer and read from there.  
+
+```{r data, echo=TRUE}
+## Setting data folder (working locally)
+## simple paste widows copied link into r"( )"
+data.dir <- r"(F:\Jeff et Sara\Documents\R\John_Hopkins\data\)"
+data.dir <- gsub("\\\\", "/", data.dir)
+
+## Set results.dir
+## simple paste widows copied link into r"( )"
+results.dir <- r"(F:\Jeff et Sara\Documents\R\John_Hopkins\results\)"
+results.dir <- gsub("\\\\", "/", results.dir)
+
+## If protocol allows...
+file <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+download.file(file,paste0(data.dir, "repdata_data_activity.zip"))
+## In download.file(file, "repdata_data_activity.zip") : cannot open URL 'https://d396qusza40orc.cloudfront.net/repdata_data_activity.zip': HTTP status was '403 Forbidden'
+
+## Loading and processing the data
+data <- read.csv(unzip(paste0(data.dir, "repdata_data_activity.zip")), header = T)
+```
+
+The first step is to transform the data into a usable format (e.g. including the creation of a POSIXct variable), with the addition of creating new variables that will be useful in future step of the project. This includes creating a variable representing the day of the week (will be used for imputation) as well as a dichotomous variable for Week days/Weekend days that will also be used later.  Those variable are created upfront, but could have been created later in the analysis.
+
+```{r transform_data, echo=TRUE}
+## Transforming date into good format using lubridate
+data$date <- ymd(data$date)
+
+## create hours from intervals using floor and modify to create POSIX variables later (need to have 2 nchar)
+data$hour <- as.character(floor(data$interval/100))
+data$hour[(nchar(data$hour) == 1)] <- paste0("0", data$hour[(nchar(data$hour) == 1)])
+
+## create minutes from intervals using modulo and modify to create POSIX variables later (need to have 2 nchar)
+data$minute <- as.character(data$interval %% 100)
+data$minute[(nchar(data$minute) == 1)] <- paste0("0", data$minute[(nchar(data$minute) == 1)])
+
+## create hours, minutes
+data$time <- hm(paste(data$hour, data$minute, sep = ":"))
+
+## create date and time variable
+data <- data %>% mutate(date.time = date + time)
 
 
-## What is mean total number of steps taken per day?
 
+## create day of the week and other useful variables
+data$day <- as.factor(weekdays(data$date.time))
+data$weekday <- as.factor(ifelse(weekdays(data$date.time) %in% c("samedi", "dimanche"), "Weekend", "Weekday"))
+## if system is in English
+## data$weekday <- as.factor(ifelse(weekdays(data$date.time) %in% c("Saturday", "Sunday"), "Weekend", "Weekday")) 
+data$hour <- as.factor(hour(data$date.time))
+data$minute <- as.factor(minute(data$date.time))
+```
 
+## Total number of steps (mean and median) taken per day
 
-## What is the average daily activity pattern?
+Before calculating the mean and the median for the total number of steps taken per day, we need to calculate the total number of steps taken daily.  The first part of the analysis will disregard missing values.
 
+```{r total_daily_step, echo=TRUE}
+## Calculate the number of steps taken per day (ignoring missing)
+total_daily_step <- data %>%  group_by(date) %>% summarize(freq = sum(steps, na.rm = T))
 
+## Calculate the steps mean total number of steps taken per day (ignoring missing)
+mean_daily_step <- total_daily_step %>%  summarize(mean = mean(freq, na.rm = T))
 
-## Imputing missing values
+## Calculate the steps median number of steps taken per day (ignoring missing)
+median_daily_step <- total_daily_step %>%  summarize(median = median(freq, na.rm = T))
+```
 
+Figure 1, below, is a histogram of the total number of steps taken each day (ignoring missing).
 
+```{r graph_1, echo=TRUE}
+## Make a histogram of the total number of steps taken each day (ignoring missing)
+g1 <- ggplot(total_daily_step, aes(x=freq)) + geom_histogram(fill = "orange", color = "black", linewidth = 1, binwidth = 5000)
+g1 <- g1 + labs(title = "Figure 1: Total number of steps taken each day", subtitle = "(missing removed)", x = "Number of steps taken", y= "Frequency") + theme_bw()
+g1 <- g1 + ylim(0,40) + theme(plot.title = element_text(size = 12, face = "bold"))
+g1 <- g1 + geom_text(data = mean_daily_step, mapping = aes(x=-2000, y=28.5, hjust = 0, label = c(paste0("Mean number steps taken: ",round(mean))))) 
+g1 <- g1 + geom_text(data = median_daily_step, mapping = aes(x=-2000, y=27, hjust = 0, label = c(paste0("Median number steps taken: ",round(median))))) 
+g1 <- g1 + ylim(0,40) + theme(plot.title = element_text(size = 12, face = "bold"), plot.subtitle = element_text(size = 10))
+g1
 
-## Are there differences in activity patterns between weekdays and weekends?
+ggsave(file = paste0(results.dir, "Figure1.pdf"),g1)
+```
+
+As indicated on Figure 1, the mean number of steps taken per day over the period analysed is `r format(round(mean_daily_step$mean), big.mark=" ", scientific=FALSE, trim=TRUE)` while the median number of steps taken is `r format(round(median_daily_step$median), big.mark=" ", scientific=FALSE, trim=TRUE)`.
+
+## Mean number of steps taken per 5 minutes intervals (ignoring missing)
+
+We will now calculate the mean number of steps taken per 5 minutes intervals, once again ignoring missing.  In order to make it easier to plot the time period, we will create a variable that follow the grouping position (i.e.: hour and minute) to make it easier to plot results nicely over the time period.  We also identify which daily 5-minute interval contain, on average, the maximum number of steps taken.
+
+```{r mean_interval_step, echo=TRUE}
+mean_interval_step <- data %>%  group_by(time) %>% summarize(mean = mean(steps, na.rm = T))
+mean_interval_step$count <- 1:nrow(mean_interval_step)
+mean_interval_step$hour <- hour(as.POSIXct(as.Date("2012-10-01") + mean_interval_step$time))
+mean_interval_step$minute <- minute(as.POSIXct(as.Date("2012-10-01") + mean_interval_step$time))
+hours_labels <- c(as.character(unique(mean_interval_step$hour)), "0")
+hours_breaks <- seq(1, 289, by = 12)
+
+## Identify which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+max_interval_step <- mean_interval_step %>% filter(mean == max(mean))
+```
+
+Figure 2, below, is a line graph of the mean number of steps taken per 5 minutes intervals (ignoring missing).
+
+```{r graph_2, echo=TRUE}
+g2 <- ggplot(mean_interval_step, aes(x = count  , y = mean)) + geom_line(color = "black", lwd = 1) + scale_x_continuous(breaks = hours_breaks, labels=hours_labels)
+g2 <- g2 + labs(title = "Figure 2: Average daily activity pattern (5 minutes interval - missing removed)", x = "Hour of the day", y= "Average number of steps taken") + theme_bw()
+g2 <- g2 + theme(plot.title = element_text(size = 12, face = "bold")) 
+g2 <- g2 + annotate("text", x=120, y=200, hjust = 0, label = c(paste0("The maximum average number steps")))
+g2 <- g2 + annotate("text", x=120, y=192, hjust = 0, label = c(paste0("taken per period of 5 minutes is ",round(max_interval_step$mean)))) 
+g2 <- g2 + annotate("text", x=120, y=184, hjust = 0, label = c(paste0("and it takes place at ",max_interval_step$time))) 
+g2 
+
+ggsave(file = paste0(results.dir, "Figure2.pdf"),g2)
+```
+
+As indicated on Figure 2, the maximum average number steps taken per period of 5 minutes is  `r round(max_interval_step$mean)` and it takes place at `r format(max_interval_step$time, format="%b %d %Y")`.
+
+## Impact of missing values (and imputation of those)
+
+The first step taken here is to calculate and report the total number of missing values in the data.  We have a more detailled look at the observation to ensure which variable(s) has missings.
+
+```{r missing, echo=TRUE}
+sum(is.na(data))
+sapply(data, function(x) sum(is.na(x)))
+```
+
+In order to impute missing, we will look at daily patterns (e.g.: days of the week) by hours and 5 minutes intervals using the variables created earlier.  We will then create a new data set where we will replace missing observations by calculated means.  Before moving forward, we ensure we don't have anymore missing observations.  
+
+```{r impute_missing, echo=TRUE}
+## Calculate the steps mean by day and interval (ignoring missing)
+mean_detailled_step <- data %>%  group_by(day, hour, minute) %>% summarize(mean = mean(steps, na.rm = T))
+
+## Create a new dataset that is equal to the original dataset but with the missing data filled in.
+new_data <- merge(data, mean_detailled_step, by = c("day", "hour", "minute"))
+
+## Replacing Steps if missing
+new_data$steps[is.na(new_data$steps)] <- new_data$mean[is.na(new_data$steps)] 
+
+## verifying if there are remain missing
+sapply(new_data, function(x) sum(is.na(x)))
+```
+
+Once this is done, we used the same approach as before to calculate the mean and the median for the total number of steps taken per day, but this time with imputed values replacing missing ones.
+
+```{r total_daily_step_imputed, echo=TRUE}
+## Calculate the number of steps taken per day with missing imputed
+total_daily_step_imputed <- new_data %>%  group_by(date) %>% summarize(freq = sum(steps))
+
+## Calculate the steps mean total number of steps taken per day with missing imputed
+mean_daily_step_imputed <- total_daily_step_imputed %>%  summarize(mean = mean(freq, na.rm = T))
+
+## Calculate the steps median number of steps taken per day with missing imputed
+median_daily_step_imputed <- total_daily_step_imputed %>%  summarize(median = median(freq, na.rm = T))
+```
+
+Figure 3, below, is a histogram of the total number of steps taken each day with missing replaced by imputed values.
+
+```{r graph_3, echo=TRUE}
+g3 <- ggplot(total_daily_step_imputed, aes(x=freq)) + geom_histogram(fill = "blue", color = "black", linewidth = 1, binwidth = 5000)
+g3 <- g3 + labs(title = "Figure 3: Total number of steps taken each day", subtitle = "(missing imputed)", x = "Number of steps taken", y= "Frequency") + theme_bw()
+g3 <- g3 + geom_text(data = mean_daily_step_imputed, mapping = aes(x=-2000, y=38, hjust = 0, label = c(paste0("Mean number steps taken: ",round(mean))))) 
+g3 <- g3 + geom_text(data = median_daily_step_imputed, mapping = aes(x=-2000, y=36.5, hjust = 0, label = c(paste0("Median number steps taken: ",round(median))))) 
+g3 <- g3 + ylim(0,40) + theme(plot.title = element_text(size = 12, face = "bold"), plot.subtitle = element_text(size = 10))
+g3
+
+ggsave(file = paste0(results.dir, "Figure3.pdf"),g3)
+```
+
+As indicated on Figure 3, the mean number of steps taken per day over the period analysed is `r format(round(mean_daily_step_imputed$mean), big.mark=" ", scientific=FALSE, trim=TRUE)` while the median number of steps taken is `r format(round(median_daily_step_imputed$median), big.mark=" ", scientific=FALSE, trim=TRUE)`.
+
+As we can see, not only does the shape of Figure 3 changes compare to figure 1, but the mean number of steps taken per day over the period analysed increase by `r format(round(mean_daily_step_imputed$mean) - round(mean_daily_step$mean), big.mark=" ", scientific=FALSE, trim=TRUE)` while the median increase by `r format(round(median_daily_step_imputed$median) - round(median_daily_step$median), big.mark=" ", scientific=FALSE, trim=TRUE)`.
+
+## Differences in activity patterns between weekdays and weekends
+
+The last step of this project is to assess if there are differences in activity patterns between weekdays and weekends (using the data with the filled-in missing values).  First, let's group the data using the weekday variable prepared in the first steps of this project.  The next step is do do similar calculations as done for Figure 2. 
+
+```{r mean_interval_step_imputed, echo=TRUE}
+mean_interval_step_imputed <- new_data %>%  group_by(weekday, time) %>% summarize(mean = mean(steps, na.rm = T))
+
+## Create a variable that follow group(hour, minute)position to make it easier to plot time period 
+mean_interval_step_imputed <- mean_interval_step_imputed %>% group_by(weekday) %>% mutate(count = seq(n()))
+
+mean_interval_step_imputed$hour <- hour(as.POSIXct(as.Date("2012-10-01") + mean_interval_step_imputed$time))
+mean_interval_step_imputed$minute <- minute(as.POSIXct(as.Date("2012-10-01") + mean_interval_step_imputed$time))
+
+## Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+max_interval_step_imputed <- mean_interval_step_imputed %>% group_by(weekday) %>% filter(mean == max(mean))
+
+```
+
+Figure 4, below, is a line graph of with the mean number of steps taken per 5 minutes intervals (with missing replaced by imputed values) for week days and weekend days.
+
+```{r graph_4, echo=TRUE}
+g4 <- ggplot(mean_interval_step_imputed, aes(x = count  , y = mean, color = weekday)) + geom_line(lwd = 1) + scale_x_continuous(breaks = hours_breaks, labels=hours_labels)
+g4 <- g4 + scale_color_manual(values=c("red","blue")) + facet_wrap(~weekday, ncol = 1, nrow=2)
+g4 <- g4 + labs(title = "Figure 4: Average daily activity pattern - weekday vs weekend", subtitle = "(5 minutes interval - missing imputed)", x = "Hour of the day", y= "Average number of steps taken") + theme_bw()
+g4 <- g4 + theme(plot.title = element_text(size = 12, face = "bold"), plot.subtitle = element_text(size = 10), legend.title=element_blank(), legend.justification=c(0.9,0.9), legend.position=c(0.15,0.98)) 
+g4 
+
+ggsave(file = paste0(results.dir, "Figure4.pdf"),g4)
+```
+
+As we clearly see from figure 4, the daily patterns appears to be different for week days and weekend days. The maximum average number steps taken per period of 5 minutes, during week days, is `r round(max_interval_step_imputed$mean[1])` and it takes place at `r format(max_interval_step_imputed$time[1], format="%b %d %Y")`. This compares respectively to `r round(max_interval_step_imputed$mean[2])` steps taking place at `r format(max_interval_step_imputed$time[2], format="%b %d %Y")` for weekend days.
+
