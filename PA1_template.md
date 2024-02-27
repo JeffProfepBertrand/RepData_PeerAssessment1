@@ -138,7 +138,7 @@ day (ignoring missing).
 
 ![](PA1_template_files/figure-markdown_strict/graph_1-1.png)
 
-    ggsave(file = paste0(results.dir, "Figure1.pdf"),g1)
+    ggsave(file = paste0(results.dir, "Figure1.png"),g1)
 
     ## Saving 7 x 5 in image
 
@@ -178,7 +178,7 @@ minutes intervals (ignoring missing).
 
 ![](PA1_template_files/figure-markdown_strict/graph_2-1.png)
 
-    ggsave(file = paste0(results.dir, "Figure2.pdf"),g2)
+    ggsave(file = paste0(results.dir, "Figure2.png"),g2)
 
     ## Saving 7 x 5 in image
 
@@ -253,7 +253,7 @@ day with missing replaced by imputed values.
 
 ![](PA1_template_files/figure-markdown_strict/graph_3-1.png)
 
-    ggsave(file = paste0(results.dir, "Figure3.pdf"),g3)
+    ggsave(file = paste0(results.dir, "Figure3.png"),g3)
 
     ## Saving 7 x 5 in image
 
@@ -299,7 +299,7 @@ week days and weekend days.
 
 ![](PA1_template_files/figure-markdown_strict/graph_4-1.png)
 
-    ggsave(file = paste0(results.dir, "Figure4.pdf"),g4)
+    ggsave(file = paste0(results.dir, "Figure4.png"),g4)
 
     ## Saving 7 x 5 in image
 
